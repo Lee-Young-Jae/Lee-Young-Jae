@@ -1,7 +1,5 @@
 ### Hi 👋
 
-### Hi 👋
-
 Frontend Developer👩🏻‍💻
 
 

@@ -6,7 +6,7 @@
  
 [![Anurag's GitHub stats](https://github-readme-stats.vercel.app/api?username=Lee-Young-Jae&show_icons=true)](https://github.com/anuraghazra/github-readme-stats)
  
- ### Frontend Developer👩‍💻
+ ### Frontend Developer👨‍💻
  
 
  

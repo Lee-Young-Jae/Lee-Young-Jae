@@ -4,14 +4,14 @@
  
 ### Hello, I'm YoungJae! 👋
  
-[![Anurag's GitHub stats](https://github-readme-stats.vercel.app/api?username=Lee-Young-Jae&show_icons=true)](https://github.com/anuraghazra/github-readme-stats)
+[![Anurag's GitHub stats](https://github-readme-stats.vercel.app/api?username=Lee-Young-Jae&show_icons=true&count_private=true)](https://github.com/anuraghazra/github-readme-stats)
  
- ### Frontend Developer👨‍💻
+### Frontend Developer👨‍💻
  
 
  
   
-[![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=Lee-Young-Jae)](https://github.com/anuraghazra/github-readme-stats)
+[![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=Lee-Young-Jae&layout=compact)](https://github.com/anuraghazra/github-readme-stats)
 
 [![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FLee-Young-Jae%2Fhit-counter&count_bg=%235194F0&title_bg=%23434D58&icon=duckduckgo.svg&icon_color=%23FFF800&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
 

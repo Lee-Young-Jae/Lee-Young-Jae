@@ -19,7 +19,6 @@
   <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=ffffff" alt="TypeScript Badge" />&nbsp;
 </p>
 
----
 
 ## 📈 GitHub Stats
 
@@ -31,7 +30,6 @@
 </div>
 
 
----
 
 ## 🐥 Farm 
 <div align="center">

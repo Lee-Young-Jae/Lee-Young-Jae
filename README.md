@@ -1,14 +1,11 @@
 <div align="center">
-  <!-- HEADER BANNER -->
-  <img src="https://capsule-render.vercel.app/api?type=soft&color=auto&height=200&section=header&text=👋안녕%2C%20세상!&fontSize=50" alt="header-banner" />
-
   <!-- INTRO -->
+
+  #### 안녕하세요 반갑습니다.
   #### 프론트엔드 개발자 **이영재**입니다.
 
-  [🖥️ 저는 이런 사람입니다.](https://youngjae-portfolio.vercel.app/)  
+  [🖥️ 포트폴리오](https://youngjae-portfolio.vercel.app/)  
 </div>
-
-## 🛠️ Skills
 
 <p align="center">
   <!-- React -->

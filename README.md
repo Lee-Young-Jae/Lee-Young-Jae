@@ -2,7 +2,7 @@
   <!-- INTRO -->
 
   #### 안녕하세요 반갑습니다.
-  #### 프론트엔드 개발자 **이영재**입니다.
+  #### 개발자 **이영재**입니다.
 
   [🖥️ 포트폴리오](https://youngjae-portfolio.vercel.app/)  
 </div>
@@ -40,7 +40,6 @@
 </a>
 
 
-![footer](https://capsule-render.vercel.app/api?type=waving&color=auto&height=90&section=footer&fontColor=FFFFFF&fontSize=30)
 
 </div>
 

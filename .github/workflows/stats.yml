@@ -1,6 +1,6 @@
-name: 🕹️ STATUS WINDOW sync
+name: ori stats sync
 
-# 매일 새벽(03:10 KST) 상태창 HUD를 실데이터로 다시 그린다.
+# 매일 새벽(03:10 KST) `ori stats` 창을 실데이터로 다시 그린다.
 # scripts/ 가 바뀐 푸시에서도 재생성해 어셋 최신화를 보장한다.
 
 on:
@@ -12,13 +12,13 @@ on:
     paths:
       - 'scripts/**'
       - 'assets/fonts/**'
-      - '.github/workflows/arcade-hud.yml'
+      - '.github/workflows/stats.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: arcade-hud
+  group: ori-stats
   cancel-in-progress: true
 
 jobs:
@@ -32,24 +32,24 @@ jobs:
         with:
           node-version: 22
 
-      - name: Render STATUS WINDOW (hud-*.svg)
+      - name: Render `ori stats` (stats-*.svg)
         env:
           # HUD_TOKEN(선택): 비공개 기여까지 집계하려면 read:user 스코프 PAT을 시크릿으로 등록
           HUD_TOKEN: ${{ secrets.HUD_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/render-hud.mjs
+        run: node scripts/render-stats.mjs
 
-      - name: Rebuild static assets (hero/inventory/...)
+      - name: Rebuild static assets (hero/life/...)
         run: node scripts/build-assets.mjs
 
       - name: Commit & push if changed
         run: |
-          git config user.name 'ori-arcade-bot'
+          git config user.name 'ori-terminal-bot'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add -A assets
           if git diff --cached --quiet; then
             echo 'no changes — skip commit'
           else
-            git commit -m "🕹️ sync: status window $(date -u '+%Y-%m-%d')"
+            git commit -m "chore: ori stats sync $(date -u '+%Y-%m-%d')"
             git push
           fi

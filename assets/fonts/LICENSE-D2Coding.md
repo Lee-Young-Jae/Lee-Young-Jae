@@ -1,7 +1,8 @@
-Copyright &copy; 2019–2025 Lee Minseo (quiple@quiple.dev)
+D2Coding — Copyright (c) 2015, NAVER Corporation (https://www.navercorp.com/) with Reserved Font Name D2Coding.
 
-This font software is licensed under the SIL Open Font License, Version 1.1.
-This license is copied below, and is also available with a FAQ at:
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+아래는 원문 라이선스 전문입니다 (Galmuri 고지와 동일한 OFL 1.1 본문):
+
 <https://openfontlicense.org>
 
 # SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007

@@ -13,13 +13,16 @@ scripts/
   copy.mjs          세션 시나리오(한국어 카피 전부 — 폰트 서브셋의 기준!)
   fonts.mjs         D2Coding 서브셋 base64 임베드 + 커버리지 가드/새니타이저
   metrics.json      서브셋 글리프 폭 (hmtx 산출물)
-  build-assets.mjs  정적 SVG (hero=0:fetch / sea=3:sea 수족관 / footer / 버튼)
-  render-stats.mjs  동적 SVG (stats=1:stats 히트맵·게이지, repos=2:repos 최근 레포)
+  build-assets.mjs  정적 SVG (링크 버튼 3종)
+  render-stats.mjs  세션 SVG 전체 (session-{dark,light}.svg 하나에 모든 장면)
 assets/             산출물 (SVG + 서브셋 폰트 + OFL 고지)
-.github/workflows/stats.yml   매일 03:10 KST stats+repos 재렌더 + 커밋
+.github/workflows/stats.yml   매일 03:10 KST 세션 재녹화 + 커밋
 ```
 
-터미널 창들은 같은 tmux 세션 `[ori]`의 0:fetch / 1:stats / 2:repos / 3:sea 창입니다.
+프로필은 **터미널 하나**로 구성됩니다 — `ori-fetch`(오리 16초 서사: 깜빡·꽥·자맥질·날갯짓, 사인 물결 2겹 + 수면 반영)
+→ `cat about.md` → `ori stats`(**플로팅 아이소메트릭 다이오라마**: 두 축 기울인 3D 잔디 기둥 + 슬래브 + 그림자,
+오리가 능선을 오르면 주 단위로 출렁) → `ori repos --recent` → `ori quack --max`(픽셀 QUACK! + EQ + 색종이 + 군무).
+하단 상태바에는 ● REC 점멸과 산책하는 미니 오리.
 
 ### 특정 레포 숨기기 (2:repos 창)
 

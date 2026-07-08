@@ -28,12 +28,6 @@ export const COPY = {
     ],
   },
 
-  sea: {
-    cmd: 'asciiquarium',
-    quack: '꽥',
-    credit: 'asciiquarium (duck edition)',
-  },
-
   stats: {
     cmd: 'ori stats',
     heatmapTitle: '기여 히트맵 · 최근 52주',
@@ -64,10 +58,10 @@ export const COPY = {
     ago: { today: '오늘', days: (n) => `${n}일 전`, weeks: (n) => `${n}주 전`, months: (n) => `${n}개월 전` },
   },
 
-  detach: {
-    cmd: 'tmux detach',
-    out: '[detached (from session ori)]',
-    bye: '내일 밤 같은 세션에서 다시 만나요 — 잔디는 계속 자랍니다.',
+  party: {
+    cmd: 'ori quack --max',
+    quack: '꽥',
+    outroFmt: (date) => `# 이 세션은 GitHub Actions가 매일 밤 다시 녹화합니다 · last sync ${date} KST`,
   },
 
   buttons: {
@@ -76,8 +70,9 @@ export const COPY = {
     mail: { cmd: 'mail ori', kr: '이메일' },
   },
 
-  tmux: {
-    windows: ['0:fetch', '1:stats', '2:repos'],
+  bar: {
+    session: '[ori]',
+    rec: '● REC',
   },
 };
 

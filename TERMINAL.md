@@ -11,15 +11,21 @@
 scripts/
   theme.mjs         ORI NIGHT/PAPER 토큰 · 윈도우 크롬 · 타이핑 연출 엔진
   copy.mjs          세션 시나리오(한국어 카피 전부 — 폰트 서브셋의 기준!)
-  fonts.mjs         D2Coding 서브셋 base64 임베드 + 커버리지 가드
+  fonts.mjs         D2Coding 서브셋 base64 임베드 + 커버리지 가드/새니타이저
   metrics.json      서브셋 글리프 폭 (hmtx 산출물)
-  build-assets.mjs  정적 SVG (hero=0:fetch / life=2:life / footer / 버튼)
-  render-stats.mjs  동적 SVG (stats=1:stats — 히트맵·게이지)
+  build-assets.mjs  정적 SVG (hero=0:fetch / sea=3:sea 수족관 / footer / 버튼)
+  render-stats.mjs  동적 SVG (stats=1:stats 히트맵·게이지, repos=2:repos 최근 레포)
 assets/             산출물 (SVG + 서브셋 폰트 + OFL 고지)
-.github/workflows/stats.yml   매일 03:10 KST stats 재렌더 + 커밋
+.github/workflows/stats.yml   매일 03:10 KST stats+repos 재렌더 + 커밋
 ```
 
-세 개의 터미널 창은 같은 tmux 세션 `[ori]`의 0:fetch / 1:stats / 2:life 창입니다.
+터미널 창들은 같은 tmux 세션 `[ori]`의 0:fetch / 1:stats / 2:repos / 3:sea 창입니다.
+
+### 특정 레포 숨기기 (2:repos 창)
+
+`scripts/copy.mjs` → `COPY.repos.hide` 배열에 레포 이름을 추가하면 다음 갱신부터 빠집니다.
+기본 필터: 공개(non-fork, 비아카이브) + **설명(description) 있는** 레포만, 최근 푸시 순 5개.
+설명의 미커버 글자·이모지는 조용히 제거되고(sanitizeCovered), 긴 설명은 `…`로 잘립니다.
 
 ## 자주 하는 일
 

@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import {
   THEMES, LANG_HUES, HUE_FALLBACK, line, windowChrome, makeSession, svgDoc, cells,
 } from './theme.mjs';
-import { fontFaceCSS, assertCovered } from './fonts.mjs';
+import { fontFaceCSS, assertCovered, sanitizeCovered } from './fonts.mjs';
 import { COPY } from './copy.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,6 +54,13 @@ query($login: String!, $thisFrom: DateTime!, $lastFrom: DateTime!, $lastTo: Date
       totalCount
       nodes { stargazerCount languages(first: 6, orderBy: {field: SIZE, direction: DESC}) { edges { size node { name } } } }
     }
+    recent: repositories(first: 20, privacy: PUBLIC, ownerAffiliations: OWNER, isFork: false, orderBy: {field: PUSHED_AT, direction: DESC}) {
+      nodes {
+        name description pushedAt isArchived
+        primaryLanguage { name }
+        defaultBranchRef { target { ... on Commit { abbreviatedOid } } }
+      }
+    }
   }
 }`;
   const d = await gql(q, {
@@ -93,6 +100,20 @@ query($login: String!, $thisFrom: DateTime!, $lastFrom: DateTime!, $lastTo: Date
   const langs = [...langBytes.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
     .map(([name, bytes]) => ({ name, pct: (bytes / totalBytes) * 100 }));
 
+  // 최근 푸시 순 공개 레포 — 숨김 목록·아카이브·설명 없는 레포·프로필 레포 제외
+  const hide = new Set(COPY.repos.hide);
+  const recent = u.recent.nodes
+    .filter((r) => !r.isArchived && !hide.has(r.name) && r.name !== LOGIN
+      && r.description && r.defaultBranchRef?.target?.abbreviatedOid)
+    .slice(0, COPY.repos.max)
+    .map((r) => ({
+      name: r.name,
+      desc: sanitizeCovered(r.description),
+      oid: r.defaultBranchRef.target.abbreviatedOid,
+      lang: r.primaryLanguage?.name ?? '',
+      pushedAt: r.pushedAt,
+    }));
+
   return {
     year, todayStr, weeks,
     thisYearTotal: u.thisYear.contributionCalendar.totalContributions,
@@ -102,7 +123,7 @@ query($login: String!, $thisFrom: DateTime!, $lastFrom: DateTime!, $lastTo: Date
     repos: u.repositories.totalCount,
     stars: u.repositories.nodes.reduce((a, r) => a + r.stargazerCount, 0),
     followers: u.followers.totalCount,
-    langs,
+    langs, recent,
   };
 }
 
@@ -264,10 +285,74 @@ function statsSvg(t, s) {
 }
 
 // ------------------------------------------------------------
+// repos 창 — `ori repos --recent` (tmux 2:repos)
+// ------------------------------------------------------------
+function relAgo(pushedAt, now) {
+  const days = Math.max(0, Math.floor((now - new Date(pushedAt).getTime()) / 86400000));
+  if (days === 0) return COPY.repos.ago.today;
+  if (days < 7) return COPY.repos.ago.days(days);
+  if (days < 35) return COPY.repos.ago.weeks(Math.round(days / 7));
+  return COPY.repos.ago.months(Math.max(1, Math.round(days / 30)));
+}
+
+function reposSvg(t, s) {
+  const P = 12;
+  const bodyX = P + 30;
+  const bodyY = P + 30 + 34;
+  const sess = makeSession(t, { x: bodyX, y: bodyY, fs: FS, lh: LH });
+  const now = Date.now();
+  const MAXC = Math.floor((W - bodyX * 2) / CW); // 한 줄 셀 예산
+
+  sess.type(COPY.repos.cmd, { pause: 0.4 });
+
+  if (!s.recent.length) {
+    sess.out([[[assertCovered(COPY.repos.empty, 'repos-empty'), 'dim']]], { pause: 0.25 });
+  } else {
+    const rows = s.recent.map((r) => {
+      const meta = `  ${r.lang ? r.lang + ' · ' : ''}${relAgo(r.pushedAt, now)}`;
+      const head = 2 + r.oid.length + 2 + r.name.length + 2; // '* ' oid ' (' name ') '
+      let desc = r.desc;
+      const budget = MAXC - head - cells(meta) - 1;
+      while (desc && cells(desc) > budget) desc = desc.slice(0, -2).trimEnd() + '…';
+      return [
+        ['* ', 'green'], [r.oid, 'amber'],
+        [' (', 'dim'], [r.name, 'cyan', true], [') ', 'dim'],
+        [desc, null], [meta, 'dim'],
+      ];
+    });
+    sess.out(rows, { stagger: 0.09, pause: 0.25 });
+  }
+
+  sess.gap(0.5);
+  sess.out([[[assertCovered(COPY.repos.footer, 'repos-footer'), 'faint']]], { pause: 0.1 });
+  sess.idle();
+
+  const r = sess.render();
+  const tmuxH = 26;
+  const H = r.endY + 14 + tmuxH + P;
+  const chrome = windowChrome(t, {
+    w: W, h: H, title: 'ori@github — tmux', activeWin: 2,
+    windows: COPY.tmux.windows, host: COPY.host,
+  });
+
+  return svgDoc({
+    w: W, h: H,
+    title: `ori repos — 최근 활동 저장소 ${s.recent.length}개`,
+    desc: s.recent.map((r) => r.name).join(', ') || '최근 활동 없음',
+    font: fontFaceCSS('full'),
+    style: r.css,
+    body: chrome.open + r.svg + chrome.close,
+  });
+}
+
+// ------------------------------------------------------------
 const stats = await fetchStats();
 console.log('stats:', JSON.stringify({ ...stats, weeks: `(${stats.weeks.length} weeks)` }, null, 2));
 for (const t of Object.values(THEMES)) {
   const svg = statsSvg(t, stats);
   writeFileSync(join(root, `assets/stats-${t.id}.svg`), svg);
   console.log(`✔ assets/stats-${t.id}.svg`, (svg.length / 1024).toFixed(1) + 'KB');
+  const rsvg = reposSvg(t, stats);
+  writeFileSync(join(root, `assets/repos-${t.id}.svg`), rsvg);
+  console.log(`✔ assets/repos-${t.id}.svg`, (rsvg.length / 1024).toFixed(1) + 'KB');
 }

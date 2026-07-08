@@ -33,3 +33,12 @@ export function assertCovered(str, where) {
   }
   return str;
 }
+
+// 외부 유래 동적 텍스트(레포 설명 등)용 — 미커버 글자·이모지는 조용히 제거 (크론 빌드가 죽으면 안 됨)
+export function sanitizeCovered(str) {
+  let out = '';
+  for (const ch of str) {
+    if (ch.charCodeAt(0) <= 127 || ch in METRICS) out += ch;
+  }
+  return out.replace(/\s{2,}/g, ' ').trim();
+}

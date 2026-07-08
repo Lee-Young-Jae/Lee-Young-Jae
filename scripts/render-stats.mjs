@@ -346,97 +346,127 @@ ${visKF('kfF', W_F, DP)}
   const SWIM_P = 18;              // 왕복 주기(초)
   const COL_DT = 0.085;           // 열당 통과 간격
 
-  // ---- 플로팅 아이소메트릭 다이오라마 ----
-  // 두 축 모두 기울인 진짜 아이소 보드: 주(week) 축 ↗ 우상향, 요일 축 ↘ 화면 앞으로.
-  // 두께 있는 슬래브 위에 잔디 기둥, 아래엔 그림자 — 공중에 뜬 미니어처 정원.
-  const U = [15.4, -2.8];            // week 축 (오른쪽 위로)
-  const V = [8, 7];                  // day 축 (viewer 쪽 아래로)
-  const TW = 11;                     // 기둥 윗면 가로
-  const EXTRUDE = [5, 9, 13, 17, 22];
-  const RISE = Math.abs(51 * U[1]);  // 우상향 상승분
-  const DEPTH = 6 * V[1];            // 요일 깊이
-  const isoTopPad = 10;
-  const SLAB = 9;                    // 슬래브 두께
-  const isoH = isoTopPad + 22 + RISE + DEPTH + 16 + SLAB + 16 + 22; // 기둥+상승+깊이+앞면+슬래브+그림자+범례
-  let duckTrack = null;              // 오리 이동 경로 (block 안에서 계산 → CSS로)
+  // ---- 2:1 정통 아이소메트릭 다이오라마 ----
+  // 픽셀아트의 정석 투영: sx=(week-day)*HW, sy=(week+day)*HH (HW:HH=2:1).
+  // 슬래브가 떠오른 뒤 기둥들이 왼쪽부터 파도처럼 자라나고,
+  // 구름 그림자가 지형 위를 흐르고, 최다 기여일엔 깃발, 마지막 날엔 비콘.
+  const HW = 9; const HH = 4.5;      // 아이소 반폭/반높이 (2:1)
+  const EXTRUDE = [6, 10, 15, 20, 26];
+  const SLAB = 10;                   // 슬래브 두께
+  const ISO_ANG = (Math.atan2(HH, HW) * 180 / Math.PI).toFixed(2); // 26.57
+  const boardW = 57 * HW + 2 * HW;   // (52-1 + 7-1)*HW + 타일폭
+  const boardH = 57 * HH;
+  const isoTopPad = 30;              // 최고 기둥 여유
+  const isoH = isoTopPad + boardH + 2 * HH + SLAB + 46 + 26; // 보드+슬래브+그림자+범례
+  let duckTrack = null;
+  let cloudTrack = null;
+  const entStart = swimStart - 2.4;  // 기둥 자라나는 시점
 
   sess.block((x, y) => {
-    // 보드 원점: 왼쪽 아래(근경)에서 시작해 오른쪽 위(원경)로
-    const x0 = x + 10;
-    const y0 = y + isoTopPad + 22 + RISE;      // (w=0,d=0) 기둥 밑면
-    const pos = (w, d) => [x0 + w * U[0] + d * V[0], y0 + w * U[1] + d * V[1]];
-
-    // --- 슬래브 (마름모 플랫폼 + 두께 + 그림자) ---
-    const c00 = pos(-0.55, -0.75); const c10 = pos(51.75, -0.75);
-    const c11 = pos(51.75, 6.95); const c01 = pos(-0.55, 6.95);
+    // 보드 중앙 정렬 원점 (c=0,r=0 타일의 좌측 꼭짓점)
+    const x0 = x + Math.round((W - bodyX * 2 - boardW) / 2) + 6 * HW + 6;
+    const y0 = y + isoTopPad;
+    const pos = (c, r) => [x0 + (c - r) * HW, y0 + (c + r) * HH];
     const pt = (p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
-    const slabTop = dark ? '#131d30' : '#e9e2cf';
-    const slabFront = dark ? '#0c1424' : shade('#e9e2cf', 0.86);
-    const slabSide = dark ? '#0e1728' : shade('#e9e2cf', 0.92);
-    const down = (p, dy) => [p[0], p[1] + dy];
-    const shadowY = c01[1] + SLAB + 14;
-    const slab = `
-<ellipse cx="${(c00[0] + c11[0]) / 2}" cy="${shadowY}" rx="${(c10[0] - c00[0]) / 2 * 0.94}" ry="11" fill="#000" opacity="${dark ? 0.32 : 0.14}"/>
-<ellipse cx="${(c00[0] + c11[0]) / 2}" cy="${shadowY}" rx="${(c10[0] - c00[0]) / 2 * 0.7}" ry="7" fill="#000" opacity="${dark ? 0.22 : 0.1}"/>
-<polygon points="${pt(c00)} ${pt(c10)} ${pt(c11)} ${pt(c01)}" fill="${slabTop}"/>
-<polygon points="${pt(c01)} ${pt(c11)} ${pt(down(c11, SLAB))} ${pt(down(c01, SLAB))}" fill="${slabFront}"/>
-<polygon points="${pt(c10)} ${pt(c11)} ${pt(down(c11, SLAB))} ${pt(down(c10, SLAB))}" fill="${slabSide}"/>`;
 
-    // --- 월 라벨 (앞 모서리를 따라 경사 그대로) ---
-    const angle = (Math.atan2(U[1], U[0]) * 180) / Math.PI;
+    // --- 최다 기여일(깃발)·마지막 날(비콘) 찾기 ---
+    let maxKey = null; let maxCnt = -1; let lastKey = null;
+    weeks.forEach((w, wi) => {
+      w.contributionDays.forEach((d) => {
+        const dow = new Date(d.date + 'T00:00:00Z').getUTCDay();
+        if (d.contributionCount > maxCnt) { maxCnt = d.contributionCount; maxKey = `${wi}-${dow}`; }
+        lastKey = `${wi}-${dow}`;
+      });
+    });
+
+    // --- 슬래브 (다이아몬드 플랫폼 + 두께 + 그림자) ---
+    const cA = pos(-0.8, -0.8); const cB = pos(52, -0.8);
+    const cC = pos(52, 7); const cD = pos(-0.8, 7);
+    const down = (p, dy) => [p[0], p[1] + dy];
+    const slabTop = dark ? '#131d30' : '#e9e2cf';
+    const slabL = dark ? '#0c1424' : shade('#e9e2cf', 0.85);
+    const slabR = dark ? '#0e1728' : shade('#e9e2cf', 0.92);
+    const shadowC = pos(25.6, 3.1);
+    const slab = `<g class="slabin">
+<ellipse cx="${shadowC[0].toFixed(1)}" cy="${(cC[1] + SLAB + 16).toFixed(1)}" rx="${(boardW / 2 - 6).toFixed(0)}" ry="13" fill="#000" opacity="${dark ? 0.3 : 0.13}"/>
+<ellipse cx="${shadowC[0].toFixed(1)}" cy="${(cC[1] + SLAB + 16).toFixed(1)}" rx="${(boardW / 3).toFixed(0)}" ry="8" fill="#000" opacity="${dark ? 0.2 : 0.09}"/>
+<polygon points="${pt(cA)} ${pt(cB)} ${pt(cC)} ${pt(cD)}" fill="${slabTop}"/>
+<polygon points="${pt(cD)} ${pt(cC)} ${pt(down(cC, SLAB))} ${pt(down(cD, SLAB))}" fill="${slabL}"/>
+<polygon points="${pt(cB)} ${pt(cC)} ${pt(down(cC, SLAB))} ${pt(down(cB, SLAB))}" fill="${slabR}"/>
+</g>`;
+
+    // --- 잔디 기둥: 뒤(c+r 작은 대각선)부터 앞으로, 週 단위 그룹 ---
+    // 바깥 g = 오리 웨이브(hcol), 안쪽 g = 입장 성장(hin) — transform 충돌 없이 중첩
+    const colInner = new Array(52).fill('');
+    weeks.forEach((w, wi) => {
+      const days = [...w.contributionDays].sort((a, b) =>
+        new Date(a.date).getUTCDay() - new Date(b.date).getUTCDay());
+      for (const d of days) {
+        const dow = new Date(d.date + 'T00:00:00Z').getUTCDay();
+        const [tx, ty] = pos(wi, dow);          // 타일 좌측 꼭짓점
+        const lv = level(d.contributionCount);
+        const h = lv < 0 ? 1.5 : EXTRUDE[lv];
+        const topC = lv < 0 ? t.well : t.ramp[lv];
+        const leftC = lv < 0 ? shade(t.well, dark ? 0.8 : 0.93) : shade(t.ramp[lv], 0.62);
+        const rightC = lv < 0 ? shade(t.well, dark ? 0.66 : 0.87) : shade(t.ramp[lv], 0.42);
+        // 윗면(마름모) → 왼면 → 오른면, 모두 2:1 격자에 정렬
+        colInner[wi] += `<path d="M${tx},${ty - h} l${HW},${-HH} l${HW},${HH} l${-HW},${HH} Z" fill="${topC}"/>
+<path d="M${tx},${ty - h} l0,${h} l${HW},${HH} l0,${-h} Z" fill="${leftC}"/>
+<path d="M${tx + HW},${ty + HH - h} l0,${h} l${HW},${-HH} l0,${-h} Z" fill="${rightC}"/>`;
+        if (`${wi}-${dow}` === maxKey && maxCnt > 0) {
+          // 최다 기여일 — 펄럭이는 깃발
+          const fx = tx + HW; const fy = ty - h;
+          colInner[wi] += `<rect x="${fx - 0.75}" y="${fy - 13}" width="1.5" height="13" fill="${t.fg}"/>
+<g class="flag" style="transform-box:fill-box;transform-origin:left center"><polygon points="${fx + 0.75},${fy - 13} ${fx + 11},${fy - 10.5} ${fx + 0.75},${fy - 8}" fill="${t.amber}"/></g>`;
+        }
+        if (`${wi}-${dow}` === lastKey) {
+          // 마지막 날 — 맥동 비콘
+          const bxp = tx + HW; const byp = ty - h - 3;
+          colInner[wi] += `<circle class="beacon" style="transform-box:fill-box;transform-origin:center" cx="${bxp}" cy="${byp}" r="4" fill="none" stroke="${t.cyan}" stroke-width="1.5"/>
+<circle cx="${bxp}" cy="${byp}" r="1.8" fill="${t.cyan}"/>`;
+        }
+      }
+    });
+    let cols = '';
+    for (let wi = 0; wi < 52; wi++) {
+      const wave = (swimStart + wi * COL_DT).toFixed(2);
+      const ent = (entStart + wi * 0.02).toFixed(2);
+      cols += `<g class="hcol" style="animation-delay:${wave}s;transform-box:fill-box;transform-origin:50% 100%"><g class="hin" style="animation-delay:${ent}s">${colInner[wi]}</g></g>`;
+    }
+
+    // --- 구름 그림자 (슬래브 위로만, 클립) ---
+    const cloudClip = `<clipPath id="slabClip"><polygon points="${pt(cA)} ${pt(cB)} ${pt(cC)} ${pt(cD)}"/></clipPath>`;
+    const clouds = `<g clip-path="url(#slabClip)">
+<g class="cshadow1"><ellipse cx="0" cy="0" rx="105" ry="36" transform="rotate(${ISO_ANG})" fill="#000" opacity="${dark ? 0.16 : 0.08}"/></g>
+<g class="cshadow2"><ellipse cx="0" cy="0" rx="70" ry="24" transform="rotate(${ISO_ANG})" fill="#000" opacity="${dark ? 0.13 : 0.06}"/></g>
+</g>`;
+
+    // --- 월 라벨 (앞-왼쪽 모서리 바깥, 아이소 각도 그대로) ---
     let labels = '';
     let prevMonth = -1;
     weeks.forEach((w, wi) => {
       const m = Number(w.contributionDays[0].date.slice(5, 7));
       if (m !== prevMonth) {
-        const [lx, ly] = pos(wi, 8.3);
-        labels += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="10" fill="${t.faint}" transform="rotate(${angle.toFixed(1)} ${lx.toFixed(1)} ${ly.toFixed(1)})">${m}월</text>`;
+        const [lx, ly] = pos(wi + 0.2, 8.6);
+        labels += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="10" fill="${t.faint}" transform="rotate(${ISO_ANG} ${lx.toFixed(1)} ${ly.toFixed(1)})">${m}월</text>`;
         prevMonth = m;
       }
     });
 
-    // --- 잔디 기둥 (원경 週부터 그려 근경이 덮도록 역순) ---
-    let cols = '';
-    for (let wi = weeks.length - 1; wi >= 0; wi--) {
-      const w = weeks[wi];
-      let barsSvg = '';
-      const days = [...w.contributionDays].sort((a, b) =>
-        new Date(a.date).getUTCDay() - new Date(b.date).getUTCDay());
-      for (const d of days) {
-        const dow = new Date(d.date + 'T00:00:00Z').getUTCDay();
-        const [bx, by] = pos(wi, dow);            // dow0(일) = 뒷줄(위)
-        const lv = level(d.contributionCount);
-        const h = lv < 0 ? 2.5 : EXTRUDE[lv];
-        const topC = lv < 0 ? t.well : t.ramp[lv];
-        const frontC = lv < 0 ? shade(t.well, dark ? 0.82 : 0.94) : shade(t.ramp[lv], 0.6);
-        const rightC = lv < 0 ? shade(t.well, dark ? 0.68 : 0.88) : shade(t.ramp[lv], 0.42);
-        barsSvg += `<path d="M${bx},${by - h} l${TW},0 l${V[0]},${-V[1]} l${-TW},0 Z" fill="${topC}"/>
-<rect x="${bx}" y="${by - h}" width="${TW}" height="${h}" fill="${frontC}"/>
-<path d="M${bx + TW},${by - h} l${V[0]},${-V[1]} l0,${h} l${-V[0]},${V[1]} Z" fill="${rightC}"/>`;
-      }
-      const dl = (swimStart + wi * COL_DT).toFixed(2);
-      cols += `<g class="hcol" style="animation-delay:${dl}s;transform-box:fill-box;transform-origin:50% 100%">${barsSvg}</g>`;
-    }
-
-    // --- 오리 경로 (근경 왼쪽 아래 → 원경 오른쪽 위 오르막) ---
-    const dStart = pos(-4, 2.2);
-    const dEnd = pos(56, 2.2);
-    duckTrack = { x0: dStart[0], y0: dStart[1] - 30, x1: dEnd[0], y1: dEnd[1] - 30 };
+    cloudTrack = { a: pos(-14, 1.2), b: pos(64, 1.2), c: pos(62, 4.6), d: pos(-16, 4.6) };
+    // --- 오리: 강을 따라 하류로 (r=2.8 라인, 좌상→우하) ---
+    const dS = pos(-3.2, 2.8); const dE = pos(55.5, 2.8);
+    duckTrack = { x0: dS[0], y0: dS[1] - 26, x1: dE[0], y1: dE[1] - 26 };
     const duck = `<g class="swim"><g class="swimbob">
 ${mono(t, 0, -6, ',~.', t.amber)}
 ${mono(t, 0, 7, '( o)>', t.amber)}
 </g>
-<text x="-26" y="7" font-size="14" fill="${t.cyan}" opacity="0.55" xml:space="preserve">~</text>
-<text x="-42" y="5" font-size="14" fill="${t.cyan}" opacity="0.28" xml:space="preserve">~</text>
+<text x="-26" y="3" font-size="14" fill="${t.cyan}" opacity="0.55" xml:space="preserve">~</text>
+<text x="-42" y="-3" font-size="14" fill="${t.cyan}" opacity="0.28" xml:space="preserve">~</text>
 </g>`;
 
-    // --- 와이프 인 + 조립 ---
-    const clipW = c10[0] - c00[0] + 40;
-    const svg = `<clipPath id="hmSweep"><rect class="hmwipe" style="transform-box:fill-box;transform-origin:left" x="${c00[0] - 12}" y="${y - 6}" width="${clipW}" height="${isoH + 30}"/></clipPath>
-<g clip-path="url(#hmSweep)">${slab}${labels}${cols}${duck}</g>`;
-
-    // --- 범례 (미니 아이소 기둥, 슬래브 왼쪽 아래) ---
-    const lgY = c01[1] + SLAB + 24;
+    // --- 범례 (미니 아이소 기둥, 왼쪽 아래) ---
+    const lgY = cC[1] + SLAB + 26;
     let legend = `<text x="${x}" y="${lgY + 8}" font-size="10" fill="${t.faint}">less</text>`;
     [t.well, ...t.ramp].forEach((c, i) => {
       const lx = x + 36 + i * 17;
@@ -445,20 +475,23 @@ ${mono(t, 0, 7, '( o)>', t.amber)}
 <rect x="${lx}" y="${lgY + 8 - lh}" width="9" height="${lh}" fill="${shade(c, 0.6)}"/>`;
     });
     legend += `<text x="${x + 36 + 6 * 17 + 10}" y="${lgY + 8}" font-size="10" fill="${t.faint}">more</text>`;
-    return svg + legend;
-  }, isoH + LH * 0.5, { pause: 0.1 });
 
-  // 다이오라마 웨이브: 오리 통과 주(週)가 통째로 출렁 + 플래시, 오리는 오르막 등반
-  const swimCross = (52 * COL_DT).toFixed(2);
-  const crossPct = ((swimCross / SWIM_P) * 100).toFixed(1);
+    return slab + cloudClip + cols + clouds + labels + duck + legend;
+  }, isoH + LH * 0.4, { pause: 0.1 });
+
+  // 다이오라마 연출: 슬래브 부상 → 기둥 성장 웨이브 → 오리 하류 유영 + 週 출렁
+  const crossDur = 58.7 * COL_DT;
+  const crossPct = ((crossDur / SWIM_P) * 100).toFixed(1);
   const shadowA = dark ? 0.45 : 0.22;
   extraCSS.push(`
-.hmwipe{animation:wipe 1.1s cubic-bezier(.2,.7,.2,1) ${(swimStart - 1.5).toFixed(2)}s both;transform-origin:left}
-@keyframes wipe{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.slabin{animation:slabin .7s cubic-bezier(.2,.7,.2,1) ${(entStart - 0.4).toFixed(2)}s both}
+@keyframes slabin{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.hin{opacity:0;animation:hin .42s cubic-bezier(.25,1.5,.45,1) both}
+@keyframes hin{from{opacity:0;transform:translateY(16px)}60%{opacity:1}to{opacity:1;transform:translateY(0)}}
 .hcol{animation:isow ${SWIM_P}s linear infinite}
 @keyframes isow{
 0%{transform:none;filter:none}
-0.8%{transform:translateY(-9px);filter:brightness(1.5) drop-shadow(0 8px 5px rgba(0,0,0,${shadowA}))}
+0.8%{transform:translateY(-8px);filter:brightness(1.5) drop-shadow(0 7px 5px rgba(0,0,0,${shadowA}))}
 1.8%{transform:translateY(2px);filter:brightness(1.05)}
 2.7%{transform:translateY(-2px);filter:brightness(1.18)}
 3.6%{transform:translateY(0);filter:none}
@@ -467,6 +500,14 @@ ${mono(t, 0, 7, '( o)>', t.amber)}
 @keyframes swim{0%{transform:translate(${duckTrack.x0.toFixed(1)}px,${duckTrack.y0.toFixed(1)}px)}${crossPct}%{transform:translate(${duckTrack.x1.toFixed(1)}px,${duckTrack.y1.toFixed(1)}px)}100%{transform:translate(${duckTrack.x1.toFixed(1)}px,${duckTrack.y1.toFixed(1)}px)}}
 .swimbob{animation:swimbob .7s steps(2,jump-none) infinite}
 @keyframes swimbob{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+.flag{animation:flagwave 1s ease-in-out infinite alternate}
+@keyframes flagwave{from{transform:scaleX(1)}to{transform:scaleX(.82)}}
+.beacon{animation:beacon 2.2s ease-out infinite}
+@keyframes beacon{0%{transform:scale(.5);opacity:1}70%{opacity:.25}100%{transform:scale(2.4);opacity:0}}
+.cshadow1{animation:csh1 36s linear infinite}
+@keyframes csh1{from{transform:translate(${cloudTrack.a[0].toFixed(0)}px,${cloudTrack.a[1].toFixed(0)}px)}to{transform:translate(${cloudTrack.b[0].toFixed(0)}px,${cloudTrack.b[1].toFixed(0)}px)}}
+.cshadow2{animation:csh2 47s linear infinite}
+@keyframes csh2{from{transform:translate(${cloudTrack.c[0].toFixed(0)}px,${cloudTrack.c[1].toFixed(0)}px)}to{transform:translate(${cloudTrack.d[0].toFixed(0)}px,${cloudTrack.d[1].toFixed(0)}px)}}
 .grow{animation:growx .8s cubic-bezier(.2,.7,.2,1) both}
 @keyframes growx{from{transform:scaleX(0)}to{transform:scaleX(1)}}`);
 

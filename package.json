@@ -1,0 +1,10 @@
+{
+  "name": "ori-arcade-profile",
+  "private": true,
+  "type": "module",
+  "description": "ORI ARCADE — Lee-Young-Jae 깃헙 프로필 어셋 빌더",
+  "scripts": {
+    "build": "node scripts/build-assets.mjs",
+    "hud": "node scripts/render-hud.mjs"
+  }
+}

@@ -1,0 +1,55 @@
+name: 🕹️ STATUS WINDOW sync
+
+# 매일 새벽(03:10 KST) 상태창 HUD를 실데이터로 다시 그린다.
+# scripts/ 가 바뀐 푸시에서도 재생성해 어셋 최신화를 보장한다.
+
+on:
+  schedule:
+    - cron: '10 18 * * *' # 18:10 UTC = 03:10 KST
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'assets/fonts/**'
+      - '.github/workflows/arcade-hud.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: arcade-hud
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Render STATUS WINDOW (hud-*.svg)
+        env:
+          # HUD_TOKEN(선택): 비공개 기여까지 집계하려면 read:user 스코프 PAT을 시크릿으로 등록
+          HUD_TOKEN: ${{ secrets.HUD_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/render-hud.mjs
+
+      - name: Rebuild static assets (hero/inventory/...)
+        run: node scripts/build-assets.mjs
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name 'ori-arcade-bot'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add -A assets
+          if git diff --cached --quiet; then
+            echo 'no changes — skip commit'
+          else
+            git commit -m "🕹️ sync: status window $(date -u '+%Y-%m-%d')"
+            git push
+          fi

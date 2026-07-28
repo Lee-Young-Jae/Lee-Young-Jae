@@ -55,7 +55,7 @@ export const COPY = {
     privateDesc: '비공개 — 조용히 갈고닦는 중',
     orgDesc: '아마도 회사 프로젝트 — 오늘도 성실히 커밋 중',
     noDesc: '설명은 아직 — 일단 만들어봤습니다',
-    footer: '# 최근 푸시 순 상위 5개 · 매일 밤 자동 갱신',
+    footer: '# 최근 푸시 순 상위 5개',
     empty: '# 요즘은 조용히 갈고닦는 중',
     ago: { today: '오늘', days: (n) => `${n}일 전`, weeks: (n) => `${n}주 전`, months: (n) => `${n}개월 전` },
   },

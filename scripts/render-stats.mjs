@@ -709,7 +709,7 @@ ${mono(t, dx, eqY + 19, '( o)>', dim ? t.dim : t.amber)}
   const barH = 26;
   const H = r.endY + 8 + barH + P;
   const chrome = windowChrome(t, {
-    w: W, h: H, title: 'ori@github — session replay', activeWin: -1, windows: [], host: '',
+    w: W, h: H, title: 'Lee-Young-Jae @ github — session replay', activeWin: -1, windows: [], host: '',
   });
   const barY = P + (H - P * 2) - barH;
   const recX = P + 14 + (cells(COPY.bar.session) + 2) * (12 / 2);

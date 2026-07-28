@@ -56,9 +56,10 @@ query($login: String!, $thisFrom: DateTime!, $lastFrom: DateTime!, $lastTo: Date
       totalCount
       nodes { stargazerCount languages(first: 6, orderBy: {field: SIZE, direction: DESC}) { edges { size node { name } } } }
     }
-    recent: repositories(first: 20, ownerAffiliations: OWNER, isFork: false, orderBy: {field: PUSHED_AT, direction: DESC}) {
+    recent: repositories(first: 20, ownerAffiliations: [OWNER, ORGANIZATION_MEMBER], isFork: false, orderBy: {field: PUSHED_AT, direction: DESC}) {
       nodes {
         name description pushedAt isArchived isPrivate
+        owner { login }
         primaryLanguage { name }
         defaultBranchRef { target { ... on Commit { abbreviatedOid } } }
       }
@@ -105,12 +106,13 @@ query($login: String!, $thisFrom: DateTime!, $lastFrom: DateTime!, $lastTo: Date
   const hide = new Set(COPY.repos.hide);
   const recent = u.recent.nodes
     .filter((r) => !r.isArchived && !hide.has(r.name) && r.name !== LOGIN
-      && (r.isPrivate || r.description) && r.defaultBranchRef?.target?.abbreviatedOid)
+      && r.defaultBranchRef?.target?.abbreviatedOid)
     .slice(0, COPY.repos.max)
     .map((r) => ({
       name: r.name,
       private: r.isPrivate,
-      desc: r.isPrivate ? '' : sanitizeCovered(r.description),
+      org: r.owner.login !== LOGIN,
+      desc: r.isPrivate ? '' : sanitizeCovered(r.description ?? ''),
       oid: r.defaultBranchRef.target.abbreviatedOid,
       lang: r.primaryLanguage?.name ?? '',
       pushedAt: r.pushedAt,
@@ -565,15 +567,18 @@ ${mono(t, 0, 7, '( o)>', t.amber)}
     const rows = s.recent.map((r) => {
       const meta = `  ${r.lang ? r.lang + ' · ' : ''}${relAgo(r.pushedAt, now)}`;
       // 비공개 레포는 이름을 모자이크, 설명은 고정 문구로 (about.md의 ▓ 컨셉과 동일)
+      // 조직 소유는 회사 프로젝트 문구, 설명 없는 공개 레포는 대체 문구
       const dispName = r.private ? '▓'.repeat(Math.min(Math.max(r.name.length, 4), 12)) : r.name;
       const head = 2 + r.oid.length + 2 + dispName.length + 2;
-      let desc = r.private ? assertCovered(COPY.repos.privateDesc, 'repo-private') : r.desc;
+      let desc = r.private
+        ? assertCovered(r.org ? COPY.repos.orgDesc : COPY.repos.privateDesc, 'repo-private')
+        : (r.desc || assertCovered(COPY.repos.noDesc, 'repo-nodesc'));
       const budget = MAXC - head - cells(meta) - 1;
       while (desc && cells(desc) > budget) desc = desc.slice(0, -2).trimEnd() + '…';
       return [
         ['* ', 'green'], [r.oid, 'amber'],
         [' (', 'dim'], [dispName, 'cyan', true], [') ', 'dim'],
-        [desc, r.private ? 'dim' : null], [meta, 'dim'],
+        [desc, r.private || !r.desc ? 'dim' : null], [meta, 'dim'],
       ];
     });
     sess.out(rows, { stagger: 0.09, pause: 0.25 });

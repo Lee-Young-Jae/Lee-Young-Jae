@@ -150,29 +150,47 @@ function relAgo(pushedAt, now) {
 const mono = (t, tx, ty, str, fill, cls, extra = '') =>
   `<text${cls ? ` class="${cls}"` : ''} x="${tx}" y="${ty}" font-size="14" xml:space="preserve" fill="${fill}"${extra}>${esc(str)}</text>`;
 
-// ---- 모자이크: ▓▒█ 노이즈 3프레임이 지직거림 (시드 기반 결정적 — 빌드마다 동일) ----
+// ---- 모자이크: 깨진 유니코드 글리치 (시드 기반 결정적 — 빌드마다 동일) ----
+// 블록·아스키 노이즈·박스 파편을 섞은 프레임들이 버스트→멈춤 리듬으로 지직거리고,
+// 가끔 마젠타로 색이 깨지며 ±1px 지터가 흔들림을 더한다. (전 글자 반폭 — 그리드 유지)
 const maskLen = (name) => Math.min(Math.max(name.length, 3), 28);
+const MOS_SLOTS = [0.1, 0.1, 0.22, 0.1, 0.1, 0.38]; // 프레임별 노출 시간(초) — 불규칙 버스트
+const MOS_T = MOS_SLOTS.reduce((a, b) => a + b, 0);
+const MOS_CHARS = [
+  ['▓', '▒', '█', '░'],
+  ['#', '%', '&', '@', '$', '?', '~', '*', '+', '='],
+  ['┼', '─', '│', '├', '┤', '┬', '┴', '✗', '×'],
+];
 function mosaic(t, x, y, seed, len, phase, color) {
   let h = 2166136261;
   for (const ch of seed) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   const rnd = () => ((h = (Math.imul(h, 1664525) + 1013904223) >>> 0) / 4294967296);
-  const frames = [0, 1, 2].map(() => {
+  const pick = () => {
+    const v = rnd();
+    const set = MOS_CHARS[v < 0.5 ? 0 : v < 0.78 ? 1 : 2];
+    return set[Math.floor(rnd() * set.length)];
+  };
+  return MOS_SLOTS.map((_, k) => {
     let f = '';
-    for (let i = 0; i < len; i++) { const v = rnd(); f += v < 0.55 ? '▓' : v < 0.85 ? '▒' : '█'; }
-    return f;
-  });
-  return frames.map((f, k) =>
-    `<g class="mosf mosf${k}" style="animation-delay:${(-(phase % 3) * 0.4).toFixed(1)}s">${line(t, x, y, [[f, color]])}</g>`
-  ).join('');
+    for (let i = 0; i < len; i++) f += pick();
+    const jx = k === 0 ? 0 : Math.floor(rnd() * 3) - 1;      // ±1px 지터 (frame0은 고정 — reduced-motion 대비)
+    const col = k !== 0 && rnd() < 0.18 ? 'magenta' : color; // 가끔 색 깨짐
+    return `<g class="mosf mosf${k}" style="animation-delay:${(-(phase * 0.23) % MOS_T).toFixed(2)}s" transform="translate(${jx},0)">${line(t, x, y, [[f, col]])}</g>`;
+  }).join('');
 }
-const MOSAIC_CSS = `
-.mosf{opacity:0}
-.mosf0{opacity:1;animation:mosf0 1.2s steps(1,end) infinite}
-.mosf1{animation:mosf1 1.2s steps(1,end) infinite}
-.mosf2{animation:mosf2 1.2s steps(1,end) infinite}
-@keyframes mosf0{0%,32%{opacity:1}33%,100%{opacity:0}}
-@keyframes mosf1{0%,32%{opacity:0}33%,65%{opacity:1}66%,100%{opacity:0}}
-@keyframes mosf2{0%,65%{opacity:0}66%,100%{opacity:1}}`;
+const MOSAIC_CSS = (() => {
+  const rules = ['.mosf{opacity:0}'];
+  let acc = 0;
+  MOS_SLOTS.forEach((d, k) => {
+    const s = (acc / MOS_T) * 100; acc += d;
+    const e = (acc / MOS_T) * 100;
+    const kf = (s > 0 ? [`0%{opacity:0}`, `${s.toFixed(1)}%{opacity:1}`] : ['0%{opacity:1}'])
+      .concat(e < 100 ? [`${e.toFixed(1)}%{opacity:0}`, '100%{opacity:0}'] : ['100%{opacity:1}']);
+    rules.push(`.mosf${k}{${k === 0 ? 'opacity:1;' : ''}animation:mosf${k} ${MOS_T}s steps(1,end) infinite}`);
+    rules.push(`@keyframes mosf${k}{${kf.join('')}}`);
+  });
+  return '\n' + rules.join('\n');
+})();
 
 function bar(t, x, y, w, h, ratio, color) {
   return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${t.well}"/>

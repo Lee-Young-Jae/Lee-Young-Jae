@@ -40,7 +40,6 @@ export const COPY = {
       metaFmt: (repos, stars, followers) => `레포 ${repos} · 스타 ${stars} · 팔로워 ${followers}`,
       langs: '언어',
     },
-    footerFmt: (date) => `last sync ${date} KST · GitHub Actions가 매일 밤 갱신`,
     moods: {
       zero: '# 오늘은 잔디에 물 주는 날',
       normal: '# 오늘도 정상 영업중',
@@ -64,7 +63,7 @@ export const COPY = {
   party: {
     cmd: 'ori quack --max',
     quack: '꽥',
-    outroFmt: (date) => `# 이 세션은 GitHub Actions가 매일 밤 다시 녹화합니다 · last sync ${date} KST`,
+    outroFmt: (date) => `# last sync ${date} KST`,
   },
 
   idle: {

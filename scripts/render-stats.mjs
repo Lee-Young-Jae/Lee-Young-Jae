@@ -56,9 +56,9 @@ query($login: String!, $thisFrom: DateTime!, $lastFrom: DateTime!, $lastTo: Date
       totalCount
       nodes { stargazerCount languages(first: 6, orderBy: {field: SIZE, direction: DESC}) { edges { size node { name } } } }
     }
-    recent: repositories(first: 20, privacy: PUBLIC, ownerAffiliations: OWNER, isFork: false, orderBy: {field: PUSHED_AT, direction: DESC}) {
+    recent: repositories(first: 20, ownerAffiliations: OWNER, isFork: false, orderBy: {field: PUSHED_AT, direction: DESC}) {
       nodes {
-        name description pushedAt isArchived
+        name description pushedAt isArchived isPrivate
         primaryLanguage { name }
         defaultBranchRef { target { ... on Commit { abbreviatedOid } } }
       }
@@ -105,11 +105,12 @@ query($login: String!, $thisFrom: DateTime!, $lastFrom: DateTime!, $lastTo: Date
   const hide = new Set(COPY.repos.hide);
   const recent = u.recent.nodes
     .filter((r) => !r.isArchived && !hide.has(r.name) && r.name !== LOGIN
-      && r.description && r.defaultBranchRef?.target?.abbreviatedOid)
+      && (r.isPrivate || r.description) && r.defaultBranchRef?.target?.abbreviatedOid)
     .slice(0, COPY.repos.max)
     .map((r) => ({
       name: r.name,
-      desc: sanitizeCovered(r.description),
+      private: r.isPrivate,
+      desc: r.isPrivate ? '' : sanitizeCovered(r.description),
       oid: r.defaultBranchRef.target.abbreviatedOid,
       lang: r.primaryLanguage?.name ?? '',
       pushedAt: r.pushedAt,
@@ -357,7 +358,7 @@ ${visKF('kfF', W_F, DP)}
   const boardW = 57 * HW + 2 * HW;   // (52-1 + 7-1)*HW + 타일폭
   const boardH = 57 * HH;
   const isoTopPad = 30;              // 최고 기둥 여유
-  const isoH = isoTopPad + boardH + 2 * HH + SLAB + 46 + 26; // 보드+슬래브+그림자+범례
+  const isoH = isoTopPad + boardH + 2 * HH + SLAB + 46 + 26; // 보드+슬래브+범례
   let duckTrack = null;
   let cloudTrack = null;
   const entStart = swimStart - 2.4;  // 기둥 자라나는 시점
@@ -379,17 +380,14 @@ ${visKF('kfF', W_F, DP)}
       });
     });
 
-    // --- 슬래브 (다이아몬드 플랫폼 + 두께 + 그림자) ---
+    // --- 슬래브 (다이아몬드 플랫폼 + 두께) ---
     const cA = pos(-0.8, -0.8); const cB = pos(52, -0.8);
     const cC = pos(52, 7); const cD = pos(-0.8, 7);
     const down = (p, dy) => [p[0], p[1] + dy];
     const slabTop = dark ? '#131d30' : '#e9e2cf';
     const slabL = dark ? '#0c1424' : shade('#e9e2cf', 0.85);
     const slabR = dark ? '#0e1728' : shade('#e9e2cf', 0.92);
-    const shadowC = pos(25.6, 3.1);
     const slab = `<g class="slabin">
-<ellipse cx="${shadowC[0].toFixed(1)}" cy="${(cC[1] + SLAB + 16).toFixed(1)}" rx="${(boardW / 2 - 6).toFixed(0)}" ry="13" fill="#000" opacity="${dark ? 0.3 : 0.13}"/>
-<ellipse cx="${shadowC[0].toFixed(1)}" cy="${(cC[1] + SLAB + 16).toFixed(1)}" rx="${(boardW / 3).toFixed(0)}" ry="8" fill="#000" opacity="${dark ? 0.2 : 0.09}"/>
 <polygon points="${pt(cA)} ${pt(cB)} ${pt(cC)} ${pt(cD)}" fill="${slabTop}"/>
 <polygon points="${pt(cD)} ${pt(cC)} ${pt(down(cC, SLAB))} ${pt(down(cD, SLAB))}" fill="${slabL}"/>
 <polygon points="${pt(cB)} ${pt(cC)} ${pt(down(cC, SLAB))} ${pt(down(cB, SLAB))}" fill="${slabR}"/>
@@ -566,14 +564,16 @@ ${mono(t, 0, 7, '( o)>', t.amber)}
   } else {
     const rows = s.recent.map((r) => {
       const meta = `  ${r.lang ? r.lang + ' · ' : ''}${relAgo(r.pushedAt, now)}`;
-      const head = 2 + r.oid.length + 2 + r.name.length + 2;
-      let desc = r.desc;
+      // 비공개 레포는 이름을 모자이크, 설명은 고정 문구로 (about.md의 ▓ 컨셉과 동일)
+      const dispName = r.private ? '▓'.repeat(Math.min(Math.max(r.name.length, 4), 12)) : r.name;
+      const head = 2 + r.oid.length + 2 + dispName.length + 2;
+      let desc = r.private ? assertCovered(COPY.repos.privateDesc, 'repo-private') : r.desc;
       const budget = MAXC - head - cells(meta) - 1;
       while (desc && cells(desc) > budget) desc = desc.slice(0, -2).trimEnd() + '…';
       return [
         ['* ', 'green'], [r.oid, 'amber'],
-        [' (', 'dim'], [r.name, 'cyan', true], [') ', 'dim'],
-        [desc, null], [meta, 'dim'],
+        [' (', 'dim'], [dispName, 'cyan', true], [') ', 'dim'],
+        [desc, r.private ? 'dim' : null], [meta, 'dim'],
       ];
     });
     sess.out(rows, { stagger: 0.09, pause: 0.25 });
@@ -640,7 +640,7 @@ ${mono(t, dx, eqY + 19, '( o)>', dim ? t.dim : t.amber)}
 
   // ============ 아웃트로 ============
   sess.out([[[assertCovered(COPY.party.outroFmt(s.todayStr), 'outro'), 'faint']]], { pause: 0.3 });
-  sess.idle();
+  sess.idle(COPY.idle.ghosts.map((g) => assertCovered(g, 'idle-ghost')));
 
   // ============ 창 조립 (tmux 탭 대신 ● REC 상태바) ============
   const r = sess.render();

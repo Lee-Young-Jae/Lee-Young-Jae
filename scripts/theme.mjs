@@ -200,16 +200,77 @@ ${line(t, x, cursorY, [['❯ ', 'green', true]])}
 
     gap(n = 1) { cursorY += lh * n; return this; },
 
-    /** 마지막 유휴 프롬프트 + 영원히 깜빡이는 커서 */
-    idle() {
+    /** 마지막 유휴 프롬프트 — ghosts(문자열/배열)를 주면 돌아가며 썼다 지우기를 영원히 반복 */
+    idle(ghosts) {
       const start = clock + 0.4;
       const id = `idle${seq++}`;
+      const gx = x + 2 * CW; // "❯ " 다음 칸
+      const list = ghosts == null ? [] : [].concat(ghosts);
+      if (!list.length) {
+        lines.push({
+          svg: `
+<g class="reveal ${id}">${line(t, x, cursorY, [['❯ ', 'green', true]])}
+<rect x="${gx}" y="${cursorY - fs + 1}" width="${CW}" height="${fs + 3}" fill="${t.green}" class="idleblink"/></g>`,
+          css: `.${id}{animation:show .01s linear ${start.toFixed(2)}s both}
+.idleblink{animation:blink 1.1s steps(2,jump-none) ${start.toFixed(2)}s infinite}`,
+        });
+        clock = start;
+        cursorY += lh;
+        return this;
+      }
+      // 대기 → [타이핑 → 머뭇 → 삭제 → 대기] × N, 무한 루프 (type()과 같은 셀 단위 스텝)
+      const segs = list.map((g) => {
+        const widths = [0];
+        let acc = 0;
+        for (const ch of g) { acc += isWide(ch) ? 2 : 1; widths.push(acc); }
+        return { g, widths, n: widths.length - 1, typeDur: Math.max(acc / 14, 0.7), delDur: Math.max((acc / 14) * 0.45, 0.45) };
+      });
+      const wait0 = 1.7; const hold = 2.2; const gap = 1.9; const waitEnd = 2.8;
+      const T = wait0 + segs.reduce((a, s) => a + s.typeDur + hold + s.delDur, 0) + gap * (segs.length - 1) + waitEnd;
+      const pct = (sec) => ((sec / T) * 100).toFixed(2);
+      const mkf = []; const bkf = []; const texts = []; const wcss = [];
+      const cursorAt = (sec, wc) => mkf.push(`${pct(sec)}%{transform:translateX(${(wc * CW).toFixed(1)}px)}`);
+      // 커서 깜빡임은 손을 멈춘 구간에서만
+      const addBlink = (from, to) => {
+        let on = true;
+        for (let sec = from; sec < to - 0.05; sec += 0.55) { bkf.push(`${pct(sec)}%{opacity:${on ? 1 : 0}}`); on = !on; }
+      };
+      cursorAt(0, 0);
+      addBlink(0, wait0);
+      let tcur = wait0;
+      segs.forEach((sg, si) => {
+        const wkf = ['0%{width:0px}'];
+        const wAt = (sec, wc) => wkf.push(`${pct(sec)}%{width:${(wc * CW).toFixed(1)}px}`);
+        bkf.push(`${pct(tcur)}%{opacity:1}`);
+        sg.widths.forEach((wc, i) => { const sec = tcur + (i / sg.n) * sg.typeDur; wAt(sec, wc); cursorAt(sec, wc); });
+        tcur += sg.typeDur;
+        addBlink(tcur, tcur + hold);
+        tcur += hold;
+        bkf.push(`${pct(tcur)}%{opacity:1}`);
+        for (let i = sg.n; i >= 0; i--) { const sec = tcur + ((sg.n - i) / sg.n) * sg.delDur; wAt(sec, sg.widths[i]); cursorAt(sec, sg.widths[i]); }
+        tcur += sg.delDur;
+        wkf.push('100%{width:0px}');
+        if (si < segs.length - 1) { addBlink(tcur, tcur + gap); tcur += gap; }
+        texts.push(`<clipPath id="${id}c${si}"><rect class="${id}b${si}" x="${gx}" y="${cursorY - fs}" width="0" height="${lh}"/></clipPath>
+<g clip-path="url(#${id}c${si})">${line(t, gx, cursorY, [[sg.g, null]])}</g>`);
+        wcss.push(`.${id}b${si}{animation:${id}w${si} ${T.toFixed(2)}s steps(1,end) ${start.toFixed(2)}s infinite}
+@keyframes ${id}w${si}{${wkf.join('')}}`);
+      });
+      addBlink(tcur, T);
+      bkf.push('100%{opacity:1}');
+      mkf.push('100%{transform:translateX(0px)}');
       lines.push({
         svg: `
-<g class="reveal ${id}">${line(t, x, cursorY, [['❯ ', 'green', true]])}
-<rect x="${x + 2 * CW}" y="${cursorY - fs + 1}" width="${CW}" height="${fs + 3}" fill="${t.green}" class="idleblink"/></g>`,
+<g class="reveal ${id}">
+${line(t, x, cursorY, [['❯ ', 'green', true]])}
+${texts.join('\n')}
+<rect class="${id}k" x="${gx}" y="${cursorY - fs + 1}" width="${CW}" height="${fs + 3}" fill="${t.green}"/>
+</g>`,
         css: `.${id}{animation:show .01s linear ${start.toFixed(2)}s both}
-.idleblink{animation:blink 1.1s steps(2,jump-none) ${start.toFixed(2)}s infinite}`,
+${wcss.join('\n')}
+.${id}k{animation:${id}m ${T.toFixed(2)}s steps(1,end) ${start.toFixed(2)}s infinite,${id}o ${T.toFixed(2)}s steps(1,end) ${start.toFixed(2)}s infinite}
+@keyframes ${id}m{${mkf.join('')}}
+@keyframes ${id}o{${bkf.join('')}}`,
       });
       clock = start;
       cursorY += lh;

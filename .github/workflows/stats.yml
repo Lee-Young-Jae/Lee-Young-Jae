@@ -34,7 +34,8 @@ jobs:
 
       - name: Render `ori stats` (stats-*.svg)
         env:
-          # HUD_TOKEN(선택): 비공개 기여까지 집계하려면 read:user 스코프 PAT을 시크릿으로 등록
+          # HUD_TOKEN(선택): 비공개 기여(히트맵)·비공개 레포(모자이크 노출)까지 반영하려면
+          # repo + read:user 스코프 PAT을 시크릿으로 등록
           HUD_TOKEN: ${{ secrets.HUD_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/render-stats.mjs

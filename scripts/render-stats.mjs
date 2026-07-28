@@ -150,6 +150,30 @@ function relAgo(pushedAt, now) {
 const mono = (t, tx, ty, str, fill, cls, extra = '') =>
   `<text${cls ? ` class="${cls}"` : ''} x="${tx}" y="${ty}" font-size="14" xml:space="preserve" fill="${fill}"${extra}>${esc(str)}</text>`;
 
+// ---- 모자이크: ▓▒█ 노이즈 3프레임이 지직거림 (시드 기반 결정적 — 빌드마다 동일) ----
+const maskLen = (name) => Math.min(Math.max(name.length, 3), 28);
+function mosaic(t, x, y, seed, len, phase, color) {
+  let h = 2166136261;
+  for (const ch of seed) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  const rnd = () => ((h = (Math.imul(h, 1664525) + 1013904223) >>> 0) / 4294967296);
+  const frames = [0, 1, 2].map(() => {
+    let f = '';
+    for (let i = 0; i < len; i++) { const v = rnd(); f += v < 0.55 ? '▓' : v < 0.85 ? '▒' : '█'; }
+    return f;
+  });
+  return frames.map((f, k) =>
+    `<g class="mosf mosf${k}" style="animation-delay:${(-(phase % 3) * 0.4).toFixed(1)}s">${line(t, x, y, [[f, color]])}</g>`
+  ).join('');
+}
+const MOSAIC_CSS = `
+.mosf{opacity:0}
+.mosf0{opacity:1;animation:mosf0 1.2s steps(1,end) infinite}
+.mosf1{animation:mosf1 1.2s steps(1,end) infinite}
+.mosf2{animation:mosf2 1.2s steps(1,end) infinite}
+@keyframes mosf0{0%,32%{opacity:1}33%,100%{opacity:0}}
+@keyframes mosf1{0%,32%{opacity:0}33%,65%{opacity:1}66%,100%{opacity:0}}
+@keyframes mosf2{0%,65%{opacity:0}66%,100%{opacity:1}}`;
+
 function bar(t, x, y, w, h, ratio, color) {
   return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${t.well}"/>
 <rect class="grow" x="${x}" y="${y}" width="${Math.max(w * Math.min(ratio, 1), 3).toFixed(1)}" height="${h}" rx="2" fill="${color}" style="transform-origin:${x}px 0"/>`;
@@ -330,8 +354,16 @@ ${visKF('kfF', W_F, DP)}
   sess.out(COPY.about.lines.map((l) =>
     l.type === 'h'
       ? [[assertCovered(l.text, 'about'), 'magenta', true]]
-      : [['  ', null], [assertCovered(l.text, 'about'), null]]
+      : [['  ', null], [assertCovered(l.text, 'about').replace(/▓+/g, (m) => ' '.repeat(m.length)), null]]
   ), { stagger: 0.12, pause: 0.2 });
+  // ▓ 자리에 지직거리는 모자이크 오버레이 (height 0 블록 — 커서 이동 없음)
+  sess.block((x, y) => COPY.about.lines.map((l, i) => {
+    const m = l.type === 'h' ? null : l.text.match(/▓+/);
+    if (!m) return '';
+    const off = cells('  ' + l.text.slice(0, m.index));
+    return mosaic(t, x + off * CW, y - (COPY.about.lines.length - i) * LH, l.text, m[0].length, i, null);
+  }).join(''), 0, { pause: 0 });
+  extraCSS.push(MOSAIC_CSS);
 
   // ============ 3) ori stats (오리가 잔디 위를 헤엄침) ============
   sess.gap(0.4);
@@ -566,9 +598,9 @@ ${mono(t, 0, 7, '( o)>', t.amber)}
   } else {
     const rows = s.recent.map((r) => {
       const meta = `  ${r.lang ? r.lang + ' · ' : ''}${relAgo(r.pushedAt, now)}`;
-      // 비공개 레포는 이름을 모자이크, 설명은 고정 문구로 (about.md의 ▓ 컨셉과 동일)
+      // 비공개 레포는 이름을 글자수만 맞춘 모자이크로 (실제 ▓는 오버레이가 그림)
       // 조직 소유는 회사 프로젝트 문구, 설명 없는 공개 레포는 대체 문구
-      const dispName = r.private ? '▓'.repeat(Math.min(Math.max(r.name.length, 4), 12)) : r.name;
+      const dispName = r.private ? ' '.repeat(maskLen(r.name)) : r.name;
       const head = 2 + r.oid.length + 2 + dispName.length + 2;
       let desc = r.private
         ? assertCovered(r.org ? COPY.repos.orgDesc : COPY.repos.privateDesc, 'repo-private')
@@ -582,6 +614,13 @@ ${mono(t, 0, 7, '( o)>', t.amber)}
       ];
     });
     sess.out(rows, { stagger: 0.09, pause: 0.25 });
+    // 비공개 레포 이름 자리에 지직거리는 모자이크 오버레이
+    const priv = s.recent.map((r, i) => ({ r, i })).filter(({ r }) => r.private);
+    if (priv.length) {
+      sess.block((x, y) => priv.map(({ r, i }, k) =>
+        mosaic(t, x + (2 + r.oid.length + 2) * CW, y - (s.recent.length - i) * LH, r.name, maskLen(r.name), k, 'cyan')
+      ).join(''), 0, { pause: 0 });
+    }
   }
   sess.out([[[assertCovered(COPY.repos.footer, 'repos-footer'), 'faint']]], { pause: 0.15 });
 

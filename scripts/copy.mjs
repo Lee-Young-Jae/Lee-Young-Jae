@@ -13,7 +13,7 @@ export const COPY = {
       ['이름', '이영재 Lee YoungJae'],
       ['직업', 'Frontend Developer'],
       ['주력', 'React · Next.js · TypeScript'],
-      ['보조', 'NestJS · Flutter · Claude Code'],
+      ['보조', 'NestJS · Flutter · Swift · Claude Code'],
       ['가동시간', '2021년 첫 커밋부터 계속'],
       ['상태', '재미있는 걸 만드는 중'],
     ],
@@ -28,6 +28,17 @@ export const COPY = {
     ],
   },
 
+  // 서비스 중인 개인 앱 — 프로세스 목록처럼 보여준다
+  apps: {
+    cmd: 'ori ps',
+    status: 'running',
+    items: [
+      { id: 'ziiing', name: '지잉', desc: '생각날 때 톡, 한 번 누르면 친구·연인에게 닿는 초미니 소셜 앱' },
+      { id: 'osiodi', name: '오시오디', desc: 'iOS 앱' },
+    ],
+    footer: (n) => `# 서비스 중인 개인 앱 ${n}개`,
+  },
+
   stats: {
     cmd: 'ori stats',
     heatmapTitle: '기여 히트맵 · 최근 52주',
@@ -35,9 +46,16 @@ export const COPY = {
     rows: {
       contrib: '올해 기여',
       streak: '스트릭',
-      streakFmt: (cur, best) => `${cur}일 연속 · 최장 ${best}일`,
+      // 끊긴 날엔 '0일 연속'을 내세우지 않고 최장 기록만
+      streakFmt: (cur, best) => (cur > 0 ? `${cur}일 연속 · 최장 ${best}일` : `최장 ${best}일`),
       meta: '컬렉션',
-      metaFmt: (repos, stars, followers) => `레포 ${repos} · 스타 ${stars} · 팔로워 ${followers}`,
+      // 스타·팔로워는 metaMin을 넘었을 때만 노출
+      metaMin: { stars: 10, followers: 50 },
+      metaFmt: (repos, stars, followers) => [
+        `레포 ${repos}`,
+        stars >= COPY.stats.rows.metaMin.stars && `스타 ${stars}`,
+        followers >= COPY.stats.rows.metaMin.followers && `팔로워 ${followers}`,
+      ].filter(Boolean).join(' · '),
       langs: '언어',
     },
     moods: {
@@ -52,6 +70,7 @@ export const COPY = {
     // 노출하고 싶지 않은 레포는 여기에 이름 추가 (다음 갱신 때 사라짐)
     hide: [],
     max: 5,
+    maxPrivate: 1, // 비공개(모자이크) 레포는 이 개수까지만 — 나머지 자리는 공개 레포로 채움
     privateDesc: '비공개 — 조용히 갈고닦는 중',
     orgDesc: '아마도 회사 프로젝트 — 오늘도 성실히 커밋 중',
     noDesc: '설명은 아직 — 일단 만들어봤습니다',
@@ -80,6 +99,7 @@ export const COPY = {
     portfolio: { cmd: 'open portfolio', kr: '포트폴리오' },
     blog: { cmd: 'open blog', kr: '개발 블로그' },
     mail: { cmd: 'mail ori', kr: '이메일' },
+    ziiing: { cmd: 'open ziiing', kr: '지잉 App Store' },
   },
 
   bar: {

@@ -122,7 +122,8 @@ ${tmuxBar}
 // ------------------------------------------------------------
 //  세션 연출 엔진 — 타이핑/출력 타임라인을 CSS로 컴파일
 // ------------------------------------------------------------
-export function makeSession(t, { x, y, fs = 14, lh = 22, cps = 22 }) {
+export function makeSession(t, { x, y, fs = 14, lh = 22, cps = 22, speed = 1 }) {
+  // speed: 타이핑·출력 간격 전체 배속 (1 = 원래 속도)
   const CW = fs / 2;
   const lines = [];
   let cursorY = y;
@@ -136,8 +137,8 @@ export function makeSession(t, { x, y, fs = 14, lh = 22, cps = 22 }) {
     type(cmd, { pause = 0.5 } = {}) {
       const id = `ty${seq++}`;
       const n = cells(cmd);
-      const dur = Math.max(n / cps, 0.35);
-      const start = clock + pause;
+      const dur = Math.max(n / cps, 0.35) / speed;
+      const start = clock + pause / speed;
       // 문자 경계 스텝 키프레임 (모노 그리드라 셀 단위)
       const widths = [];
       let acc = 0;
@@ -171,8 +172,9 @@ ${line(t, x, cursorY, [['❯ ', 'green', true]])}
     },
 
     /** 출력 라인(들) — 타이핑 없이 순차 등장 */
-    out(segsList, { stagger = 0.06, pause = 0.15, fs: ofs = fs, lh: olh = lh } = {}) {
-      const start = clock + pause;
+    out(segsList, { stagger: stg = 0.06, pause = 0.15, fs: ofs = fs, lh: olh = lh } = {}) {
+      const stagger = stg / speed;
+      const start = clock + pause / speed;
       segsList.forEach((segs, i) => {
         const id = `o${seq++}`;
         lines.push({
@@ -187,7 +189,7 @@ ${line(t, x, cursorY, [['❯ ', 'green', true]])}
 
     /** 임의 SVG 블록 등장 (히트맵 등) — height만큼 커서 이동 */
     block(svgFn, height, { pause = 0.2 } = {}) {
-      const start = clock + pause;
+      const start = clock + pause / speed;
       const id = `b${seq++}`;
       lines.push({
         svg: `<g class="reveal ${id}">${svgFn(x, cursorY)}</g>`,
@@ -306,7 +308,7 @@ export function svgDoc({ w, h, title, desc, body, style, font }) {
 ${font}
 text{font-family:'D2Coding',ui-monospace,'Apple SD Gothic Neo',monospace;white-space:pre}
 ${style}
-@media (prefers-reduced-motion: reduce){ *{animation:none !important} .reveal{opacity:1} .cur{opacity:0 !important} }
+@media (prefers-reduced-motion: reduce){ *{animation:none !important} .reveal,.hin{opacity:1} .cur{opacity:0 !important} }
 </style>
 ${body}
 </svg>`;

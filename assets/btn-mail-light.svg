@@ -6,7 +6,7 @@
 text{font-family:'D2Coding',ui-monospace,'Apple SD Gothic Neo',monospace;white-space:pre}
 .arr{animation:nudge 1.6s ease-in-out infinite}
 @keyframes nudge{0%,100%{transform:translate(0,0)}50%{transform:translate(2.5px,-2.5px)}}
-@media (prefers-reduced-motion: reduce){ *{animation:none !important} .reveal{opacity:1} .cur{opacity:0 !important} }
+@media (prefers-reduced-motion: reduce){ *{animation:none !important} .reveal,.hin{opacity:1} .cur{opacity:0 !important} }
 </style>
 
 <rect x="1.5" y="1.5" width="303" height="51" rx="10" fill="#f0e9da"/>

@@ -43,5 +43,6 @@ for (const t of Object.values(THEMES)) {
   out(`btn-portfolio-${t.id}.svg`, button(t, COPY.buttons.portfolio.cmd));
   out(`btn-blog-${t.id}.svg`, button(t, COPY.buttons.blog.cmd));
   out(`btn-mail-${t.id}.svg`, button(t, COPY.buttons.mail.cmd));
+  out(`btn-ziiing-${t.id}.svg`, button(t, COPY.buttons.ziiing.cmd));
 }
 console.log('\ndone.');

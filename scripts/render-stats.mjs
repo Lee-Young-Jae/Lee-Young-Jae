@@ -500,20 +500,25 @@ ${ringKF('rpA', T_DIVE + 0.15)}${ringKF('rpB', T_SINK + 0.1)}${ringKF('rpC', T_B
     sess.block((x, y) => {
       const id = a.id + ' '.repeat(Math.max(9 - a.id.length, 1));
       const name = assertCovered(a.name, 'app') + ' '.repeat(Math.max(10 - cells(a.name), 1));
-      const st = COPY.apps.status + '  ';
+      const st = (a.live ? COPY.apps.status.live : COPY.apps.status.prep).padEnd(9, ' ');
+      const tone = a.live ? t.green : t.amber;
       const ex = x + (2 + cells(id) + cells(name) + cells(st)) * CW;
       // 심전도: 흐린 밑선 위로 밝은 구간이 흘러간다 (pathLength=100 기준 대시 이동)
       const ecg = `M${ex},${y - 5} h10 l3,-7 l4,13 l3,-6 h12 l3,-7 l4,13 l3,-6 h11`;
-      return `<g class="hb" style="animation-delay:${(i * 0.4).toFixed(1)}s;transform-box:fill-box;transform-origin:center">${mono(t, x, y, '●', t.green)}</g>`
-        + line(t, x + 2 * CW, y, [[id, 'cyan', true], [name, null], [st, 'green']])
-        + `<path d="${ecg}" fill="none" stroke="${t.green}" stroke-width="1.3" stroke-linejoin="round" opacity=".22"/>`
-        + `<path class="ecg" style="animation-delay:${(i * 0.4).toFixed(1)}s" pathLength="100" d="${ecg}" fill="none" stroke="${t.green}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`
+      // 서비스 중: 심박 점 + 흐르는 심전도 / 준비 중: 깜빡이는 점 + 평평한 선
+      const flat = `M${ex},${y - 5} h70`;
+      return `<g class="${a.live ? 'hb' : 'prep'}" style="animation-delay:${(i * 0.4).toFixed(1)}s;transform-box:fill-box;transform-origin:center">${mono(t, x, y, a.live ? '●' : '○', tone)}</g>`
+        + line(t, x + 2 * CW, y, [[id, 'cyan', true], [name, null], [st, a.live ? 'green' : 'amber']])
+        + `<path d="${a.live ? ecg : flat}" fill="none" stroke="${tone}" stroke-width="1.3" stroke-linejoin="round" opacity="${a.live ? 0.22 : 0.35}"${a.live ? '' : ' stroke-dasharray="3 4"'}/>`
+        + (a.live ? `<path class="ecg" style="animation-delay:${(i * 0.4).toFixed(1)}s" pathLength="100" d="${ecg}" fill="none" stroke="${t.green}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>` : '')
         + line(t, ex + 80, y, [[assertCovered(a.desc, 'app-desc'), 'dim']]);
     }, LH, { pause: i === 0 ? 0.2 : 0.08 });
   });
-  sess.out([[[assertCovered(COPY.apps.footer(COPY.apps.items.length), 'apps-footer'), 'faint']]], { pause: 0.12 });
+  sess.out([[[assertCovered(COPY.apps.footer(COPY.apps.items.filter((a) => a.live).length, COPY.apps.items.filter((a) => !a.live).length), 'apps-footer'), 'faint']]], { pause: 0.12 });
   extraCSS.push(`
 .hb{animation:hb 1.6s ease-in-out infinite}
+.prep{animation:prep 2.4s steps(2,jump-none) infinite}
+@keyframes prep{0%,100%{opacity:1}50%{opacity:.35}}
 @keyframes hb{0%,30%,100%{transform:scale(1);opacity:1}12%{transform:scale(1.45);opacity:.7}}
 .ecg{stroke-dasharray:24 76;animation:ecg 1.6s linear infinite}
 @keyframes ecg{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}`);
@@ -1020,7 +1025,7 @@ ${TIMECODE_CSS}
   return svgDoc({
     w: W, h: H,
     title: `ori session — ${s.year} 기여 ${fmt(s.thisYearTotal)}`,
-    desc: `ori-fetch, 서비스 중인 앱 ${COPY.apps.items.length}개, 기여 히트맵(오리가 섬을 한 바퀴), 최근 레포 ${s.recent.length}개, QUACK 피날레까지 한 세션. JS 없이 SVG 한 장.`,
+    desc: `ori-fetch, 개인 앱 ${COPY.apps.items.length}개, 기여 히트맵(오리가 섬을 한 바퀴), 최근 레포 ${s.recent.length}개, QUACK 피날레까지 한 세션. JS 없이 SVG 한 장.`,
     font: fontFaceCSS('full'),
     style: r.css + extraCSS.join('\n'),
     // 브라운관이 켜지듯: 가운데 밝은 선 → 좌우로 번짐 → 위아래로 펼쳐짐 (끝나면 스타일을 남기지 않는다)

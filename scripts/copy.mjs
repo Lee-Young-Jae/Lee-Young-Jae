@@ -28,15 +28,15 @@ export const COPY = {
     ],
   },
 
-  // 서비스 중인 개인 앱 — 프로세스 목록처럼 보여준다
+  // 개인 앱 — 프로세스 목록처럼 보여준다. live: true = 서비스 중(심박·심전도), false = 출시 준비 중(평평한 선)
   apps: {
     cmd: 'ori ps',
-    status: 'running',
+    status: { live: 'running', prep: 'building' },
     items: [
-      { id: 'ziiing', name: '지잉', desc: '생각날 때 톡, 한 번 누르면 친구·연인에게 닿는 초미니 소셜 앱' },
-      { id: 'osiodi', name: '오시오디', desc: 'iOS 앱' },
+      { id: 'ziiing', name: '지잉', live: true, desc: '생각날 때 톡, 한 번 누르면 친구·연인에게 닿는 초미니 소셜 앱' },
+      { id: 'osiodi', name: '오시오디', live: false, desc: 'iOS 앱 · 출시 준비 중' },
     ],
-    footer: (n) => `# 서비스 중인 개인 앱 ${n}개`,
+    footer: (live, prep) => `# 개인 앱 — 서비스 중 ${live}개 · 준비 중 ${prep}개`,
   },
 
   stats: {
